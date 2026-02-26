@@ -913,17 +913,26 @@ function SettingsTab() {
   const handleSave = async () => {
     setSaving(true);
     setMessage('');
-    const items = Object.entries(settings).map(([key, value]) => ({ key, value }));
-    const res = await fetch('/api/admin/settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(items),
-    });
-    if (res.ok) {
-      setMessage('Settings saved successfully!');
-    } else {
-      const data = await res.json().catch(() => ({}));
-      setMessage(`Error saving settings: ${data.error || res.statusText}`);
+    try {
+      const items = Object.entries(settings).map(([key, value]) => ({ key, value }));
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(items),
+      });
+      const text = await res.text();
+      let data: any = {};
+      try { data = JSON.parse(text); } catch {}
+      if (res.ok) {
+        setMessage('Settings saved successfully!');
+      } else {
+        setMessage(`Error ${res.status}: ${data.error || text || res.statusText}`);
+        alert(`Save failed!\nStatus: ${res.status}\nBody: ${text}`);
+      }
+    } catch (err: any) {
+      setMessage(`Network error: ${err.message}`);
+      alert(`Save network error: ${err.message}`);
     }
     setSaving(false);
   };
