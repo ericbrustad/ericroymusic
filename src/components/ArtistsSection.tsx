@@ -1,4 +1,4 @@
-import { FaYoutube, FaSoundcloud, FaPlay } from 'react-icons/fa';
+import { FaSoundcloud } from 'react-icons/fa';
 
 interface Artist {
   id: number;
@@ -14,6 +14,12 @@ interface ArtistsSectionProps {
   artists: Artist[];
 }
 
+function getYouTubeId(url: string): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
 export default function ArtistsSection({ artists }: ArtistsSectionProps) {
   if (!artists || artists.length === 0) return null;
 
@@ -26,16 +32,25 @@ export default function ArtistsSection({ artists }: ArtistsSectionProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {artists.map((artist) => (
-            <div key={artist.id} className="card group">
-              <div className="flex flex-col sm:flex-row">
-                {/* Artist image/icon area */}
-                <div className="sm:w-48 h-48 sm:h-auto bg-gradient-to-br from-purple-900/50 to-red-900/50 flex items-center justify-center flex-shrink-0">
-                  <FaPlay className="text-4xl text-white/30 group-hover:text-white/60 transition-colors" />
-                </div>
+          {artists.map((artist) => {
+            const videoId = getYouTubeId(artist.youtube_link);
+            return (
+              <div key={artist.id} className="card group">
+                {/* YouTube embed */}
+                {videoId && (
+                  <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                    <iframe
+                      className="absolute inset-0 w-full h-full rounded-t-lg"
+                      src={`https://www.youtube.com/embed/${videoId}?rel=1&showinfo=1`}
+                      title={artist.name}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                )}
 
                 {/* Content */}
-                <div className="p-6 flex-1">
+                <div className="p-6">
                   <h3 className="text-xl font-bold mb-1">
                     {artist.youtube_link ? (
                       <a
@@ -58,17 +73,6 @@ export default function ArtistsSection({ artists }: ArtistsSectionProps) {
                   )}
 
                   <div className="flex gap-3">
-                    {artist.youtube_link && (
-                      <a
-                        href={artist.youtube_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-500 hover:text-red-400 transition-colors"
-                        title="Watch on YouTube"
-                      >
-                        <FaYoutube size={24} />
-                      </a>
-                    )}
                     {artist.soundcloud_link && (
                       <a
                         href={artist.soundcloud_link}
@@ -83,8 +87,8 @@ export default function ArtistsSection({ artists }: ArtistsSectionProps) {
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

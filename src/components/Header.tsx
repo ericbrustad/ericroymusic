@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { FaBars, FaTimes } from 'react-icons/fa';
 
 interface HeaderProps {
@@ -17,11 +18,17 @@ export default function Header({ siteName, tagline }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="flex flex-col">
-            <span className="text-xl md:text-2xl font-bold font-heading text-white tracking-tight">
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/images/logo.png"
+              alt="Eric Roy Music"
+              width={50}
+              height={50}
+              className="rounded-full"
+            />
+            <span className="text-xl md:text-2xl font-bold font-heading text-[#1a73e8] tracking-tight">
               {siteName}
             </span>
-            <span className="text-xs text-gray-400 -mt-1">{tagline}</span>
           </Link>
 
           {/* Desktop Navigation */}
