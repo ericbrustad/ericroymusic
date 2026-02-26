@@ -1,13 +1,14 @@
 import Link from 'next/link';
-import { supabase } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/db';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { FaCalendar, FaFolder, FaArrowRight } from 'react-icons/fa';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 async function getSettings(): Promise<Record<string, string>> {
-  const { data: rows } = await supabase.from('site_settings').select('key, value');
+  const { data: rows } = await supabaseAdmin.from('site_settings').select('key, value');
   const settings: Record<string, string> = {};
   if (rows) {
     for (const row of rows) {
@@ -20,13 +21,13 @@ async function getSettings(): Promise<Record<string, string>> {
 export default async function BlogPage() {
   const settings = await getSettings();
 
-  const { data: posts } = await supabase
+  const { data: posts } = await supabaseAdmin
     .from('blog_posts')
     .select('*')
     .eq('is_published', true)
     .order('published_at', { ascending: false });
 
-  const { data: recentPosts } = await supabase
+  const { data: recentPosts } = await supabaseAdmin
     .from('blog_posts')
     .select('title, slug, excerpt')
     .eq('is_published', true)

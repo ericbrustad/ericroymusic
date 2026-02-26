@@ -1,14 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { supabase } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/db';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { FaCalendar, FaFolder, FaUser, FaArrowLeft } from 'react-icons/fa';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 async function getSettings(): Promise<Record<string, string>> {
-  const { data: rows } = await supabase.from('site_settings').select('key, value');
+  const { data: rows } = await supabaseAdmin.from('site_settings').select('key, value');
   const settings: Record<string, string> = {};
   if (rows) {
     for (const row of rows) {
@@ -21,7 +22,7 @@ async function getSettings(): Promise<Record<string, string>> {
 export default async function BlogPost({ params }: { params: { slug: string } }) {
   const settings = await getSettings();
 
-  const { data: post } = await supabase
+  const { data: post } = await supabaseAdmin
     .from('blog_posts')
     .select('*')
     .eq('slug', params.slug)
@@ -32,14 +33,14 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     notFound();
   }
 
-  const { data: recentPosts } = await supabase
+  const { data: recentPosts } = await supabaseAdmin
     .from('blog_posts')
     .select('title, slug, excerpt')
     .eq('is_published', true)
     .order('published_at', { ascending: false })
     .limit(3);
 
-  const { data: prevPosts } = await supabase
+  const { data: prevPosts } = await supabaseAdmin
     .from('blog_posts')
     .select('title, slug')
     .eq('is_published', true)
@@ -47,7 +48,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     .order('published_at', { ascending: false })
     .limit(1);
 
-  const { data: nextPosts } = await supabase
+  const { data: nextPosts } = await supabaseAdmin
     .from('blog_posts')
     .select('title, slug')
     .eq('is_published', true)

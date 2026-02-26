@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/db';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import MusicSection from '@/components/MusicSection';
@@ -9,9 +9,11 @@ import Newsletter from '@/components/Newsletter';
 import Footer from '@/components/Footer';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 async function getSettings(): Promise<Record<string, string>> {
-  const { data: rows } = await supabase.from('site_settings').select('key, value');
+  const { data: rows } = await supabaseAdmin.from('site_settings').select('key, value');
   const settings: Record<string, string> = {};
   if (rows) {
     for (const row of rows) {
@@ -24,7 +26,7 @@ async function getSettings(): Promise<Record<string, string>> {
 export default async function Home() {
   const settings = await getSettings();
 
-  const { data: heroData } = await supabase
+  const { data: heroData } = await supabaseAdmin
     .from('hero_sections')
     .select('*')
     .eq('is_active', true)
@@ -32,26 +34,26 @@ export default async function Home() {
     .limit(1)
     .single();
 
-  const { data: singles } = await supabase
+  const { data: singles } = await supabaseAdmin
     .from('singles')
     .select('*')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
-  const { data: artists } = await supabase
+  const { data: artists } = await supabaseAdmin
     .from('artists')
     .select('*')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
-  const { data: posts } = await supabase
+  const { data: posts } = await supabaseAdmin
     .from('blog_posts')
     .select('*')
     .eq('is_published', true)
     .order('published_at', { ascending: false })
     .limit(3);
 
-  const { data: recentPosts } = await supabase
+  const { data: recentPosts } = await supabaseAdmin
     .from('blog_posts')
     .select('title, slug, excerpt')
     .eq('is_published', true)

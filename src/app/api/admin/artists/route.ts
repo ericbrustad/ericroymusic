@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase, supabaseAdmin } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -12,7 +14,7 @@ async function requireAdmin() {
 }
 
 export async function GET() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('artists')
     .select('*')
     .order('sort_order', { ascending: true });
