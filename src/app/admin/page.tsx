@@ -604,11 +604,11 @@ function ArtistsTab() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">YouTube Link</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">SoundCloud Link</label>
             <input
               className="admin-input text-gray-900"
-              value={editing.youtube_link || ''}
-              onChange={(e) => setEditing({ ...editing, youtube_link: e.target.value })}
+              value={editing.soundcloud_link || ''}
+              onChange={(e) => setEditing({ ...editing, soundcloud_link: e.target.value })}
             />
           </div>
           <div>
@@ -899,15 +899,28 @@ function SettingsTab() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    fetch('/api/admin/settings')
-      .then(r => r.json())
-      .then((data: any[]) => {
-        const obj: Record<string, string> = {};
-        data.forEach(item => { obj[item.key] = item.value; });
-        setSettings(obj);
-        setLoading(false);
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
       });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const obj: Record<string, string> = {};
+        data.forEach((item: any) => { obj[item.key] = item.value; });
+        setSettings(obj);
+      } else {
+        console.error('Settings fetch returned non-array:', data);
+      }
+    } catch (e) {
+      console.error('Settings fetch error:', e);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchSettings();
   }, []);
 
   const handleSave = async () => {
@@ -915,6 +928,7 @@ function SettingsTab() {
     setMessage('');
     try {
       const items = Object.entries(settings).map(([key, value]) => ({ key, value }));
+      console.log('Saving settings:', items.length, 'items');
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -922,13 +936,16 @@ function SettingsTab() {
         body: JSON.stringify(items),
       });
       const text = await res.text();
+      console.log('Save response:', res.status, text);
       let data: any = {};
       try { data = JSON.parse(text); } catch {}
       if (res.ok) {
-        setMessage('Settings saved successfully!');
+        setMessage(`Settings saved! (${data.count || 0} items updated)`);
+        // Re-fetch to verify persistence
+        await fetchSettings();
       } else {
         setMessage(`Error ${res.status}: ${data.error || text || res.statusText}`);
-        alert(`Save failed!\nStatus: ${res.status}\nBody: ${text}`);
+        alert(`Save failed!\nStatus: ${res.status}\nResponse: ${text}`);
       }
     } catch (err: any) {
       setMessage(`Network error: ${err.message}`);
@@ -1016,9 +1033,11 @@ function SettingsTab() {
             <div className="space-y-4">
               {group.fields.map((field) => (
                 <div key={field.key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+                  <label htmlFor={`setting-${field.key}`} className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
                   {field.type === 'textarea' ? (
                     <textarea
+                      id={`setting-${field.key}`}
+                      name={field.key}
                       className="admin-input text-gray-900"
                       rows={3}
                       value={settings[field.key] || ''}
@@ -1026,6 +1045,8 @@ function SettingsTab() {
                     />
                   ) : (
                     <input
+                      id={`setting-${field.key}`}
+                      name={field.key}
                       className="admin-input text-gray-900"
                       value={settings[field.key] || ''}
                       onChange={(e) => updateSetting(field.key, e.target.value)}
