@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       .replace(/(^-|-$)/g, '');
 
     // Check slug uniqueness
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('blog_posts')
       .select('id')
       .eq('slug', slug)
@@ -84,7 +84,7 @@ export async function PUT(request: NextRequest) {
       .replace(/(^-|-$)/g, '');
 
     // Check slug uniqueness (excluding current post)
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('blog_posts')
       .select('id')
       .eq('slug', slug)
