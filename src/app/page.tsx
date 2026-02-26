@@ -1,4 +1,4 @@
-import getDb from '@/lib/db';
+import { supabase } from '@/lib/db';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import MusicSection from '@/components/MusicSection';
@@ -10,34 +10,53 @@ import Footer from '@/components/Footer';
 
 export const dynamic = 'force-dynamic';
 
-function getSettings(): Record<string, string> {
-  const db = getDb();
-  const rows = db.prepare('SELECT key, value FROM site_settings').all() as any[];
+async function getSettings(): Promise<Record<string, string>> {
+  const { data: rows } = await supabase.from('site_settings').select('key, value');
   const settings: Record<string, string> = {};
-  for (const row of rows) {
-    settings[row.key] = row.value;
+  if (rows) {
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
   }
   return settings;
 }
 
-export default function Home() {
-  const db = getDb();
-  const settings = getSettings();
+export default async function Home() {
+  const settings = await getSettings();
 
-  // Get hero
-  const hero = db.prepare('SELECT * FROM hero_sections WHERE is_active = 1 ORDER BY sort_order ASC LIMIT 1').get() as any;
+  const { data: heroData } = await supabase
+    .from('hero_sections')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+    .limit(1)
+    .single();
 
-  // Get singles
-  const singles = db.prepare('SELECT * FROM singles WHERE is_active = 1 ORDER BY sort_order ASC').all() as any[];
+  const { data: singles } = await supabase
+    .from('singles')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
 
-  // Get artists
-  const artists = db.prepare('SELECT * FROM artists WHERE is_active = 1 ORDER BY sort_order ASC').all() as any[];
+  const { data: artists } = await supabase
+    .from('artists')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
 
-  // Get blog posts
-  const posts = db.prepare('SELECT * FROM blog_posts WHERE is_published = 1 ORDER BY published_at DESC LIMIT 3').all() as any[];
+  const { data: posts } = await supabase
+    .from('blog_posts')
+    .select('*')
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+    .limit(3);
 
-  // Recent posts for footer
-  const recentPosts = db.prepare('SELECT title, slug, excerpt FROM blog_posts WHERE is_published = 1 ORDER BY published_at DESC LIMIT 3').all() as any[];
+  const { data: recentPosts } = await supabase
+    .from('blog_posts')
+    .select('title, slug, excerpt')
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+    .limit(3);
 
   return (
     <main>
@@ -46,33 +65,33 @@ export default function Home() {
         tagline={settings.site_tagline || ''}
       />
 
-      {hero && (
+      {heroData && (
         <Hero
-          title={hero.title}
-          subtitle={hero.subtitle || ''}
-          ctaText={hero.cta_text || ''}
-          ctaLink={hero.cta_link || ''}
-          backgroundImage={hero.background_image}
+          title={heroData.title}
+          subtitle={heroData.subtitle || ''}
+          ctaText={heroData.cta_text || ''}
+          ctaLink={heroData.cta_link || ''}
+          backgroundImage={heroData.background_image}
         />
       )}
 
       <MusicSection
-        singles={singles}
+        singles={singles || []}
         welcomeText={settings.welcome_text || 'Welcome to where its at'}
       />
 
       <YouTubeSection channelUrl={settings.youtube_channel || ''} />
 
-      <ArtistsSection artists={artists} />
+      <ArtistsSection artists={artists || []} />
 
-      <BlogSection posts={posts} />
+      <BlogSection posts={posts || []} />
 
       <Newsletter
         heading={settings.newsletter_heading || 'UPCOMING EVENTS AND SPECIAL OFFERS'}
         subheading={settings.newsletter_subheading || 'GET WEEKLY NEWSLETTER'}
       />
 
-      <Footer settings={settings} recentPosts={recentPosts} />
+      <Footer settings={settings} recentPosts={recentPosts || []} />
     </main>
   );
 }

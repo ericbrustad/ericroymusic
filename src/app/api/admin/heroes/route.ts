@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import getDb from '@/lib/db';
+import { supabase, supabaseAdmin } from '@/lib/db';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -11,75 +11,72 @@ async function requireAdmin() {
   return true;
 }
 
-// GET all hero sections
 export async function GET() {
-  const db = getDb();
-  const heroes = db.prepare('SELECT * FROM hero_sections ORDER BY sort_order ASC').all();
-  return NextResponse.json(heroes);
+  const { data, error } = await supabase
+    .from('hero_sections')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  return NextResponse.json(data);
 }
 
-// POST create hero section
 export async function POST(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const data = await request.json();
-    const db = getDb();
+    const body = await request.json();
+    const { data, error } = await supabaseAdmin
+      .from('hero_sections')
+      .insert({
+        title: body.title,
+        subtitle: body.subtitle || '',
+        background_image: body.background_image || '',
+        cta_text: body.cta_text || '',
+        cta_link: body.cta_link || '',
+        sort_order: body.sort_order || 0,
+        is_active: body.is_active !== undefined ? body.is_active : true,
+      })
+      .select('id')
+      .single();
 
-    const result = db.prepare(`
-      INSERT INTO hero_sections (title, subtitle, background_image, cta_text, cta_link, sort_order, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      data.title,
-      data.subtitle || '',
-      data.background_image || '',
-      data.cta_text || '',
-      data.cta_link || '',
-      data.sort_order || 0,
-      data.is_active !== undefined ? data.is_active : 1
-    );
-
-    return NextResponse.json({ id: result.lastInsertRowid, message: 'Hero created' });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ id: data.id, message: 'Hero created' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
-// PUT update hero section
 export async function PUT(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const data = await request.json();
-    const db = getDb();
+    const body = await request.json();
+    const { error } = await supabaseAdmin
+      .from('hero_sections')
+      .update({
+        title: body.title,
+        subtitle: body.subtitle || '',
+        background_image: body.background_image || '',
+        cta_text: body.cta_text || '',
+        cta_link: body.cta_link || '',
+        sort_order: body.sort_order || 0,
+        is_active: body.is_active !== undefined ? body.is_active : true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', body.id);
 
-    db.prepare(`
-      UPDATE hero_sections SET
-        title = ?, subtitle = ?, background_image = ?, cta_text = ?, cta_link = ?,
-        sort_order = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(
-      data.title,
-      data.subtitle || '',
-      data.background_image || '',
-      data.cta_text || '',
-      data.cta_link || '',
-      data.sort_order || 0,
-      data.is_active !== undefined ? data.is_active : 1,
-      data.id
-    );
-
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ message: 'Hero updated' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
-// DELETE hero section
 export async function DELETE(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -90,8 +87,12 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    const db = getDb();
-    db.prepare('DELETE FROM hero_sections WHERE id = ?').run(id);
+    const { error } = await supabaseAdmin
+      .from('hero_sections')
+      .delete()
+      .eq('id', id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ message: 'Hero deleted' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

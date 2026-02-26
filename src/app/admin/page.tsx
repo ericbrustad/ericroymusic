@@ -273,8 +273,8 @@ function HeroTab() {
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
-                  checked={editing.is_active === 1}
-                  onChange={(e) => setEditing({ ...editing, is_active: e.target.checked ? 1 : 0 })}
+                  checked={editing.is_active === true}
+                  onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
                 />
                 Active
               </label>
@@ -446,8 +446,8 @@ function SinglesTab() {
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
-                  checked={editing.is_latest === 1}
-                  onChange={(e) => setEditing({ ...editing, is_latest: e.target.checked ? 1 : 0 })}
+                  checked={editing.is_latest === true}
+                  onChange={(e) => setEditing({ ...editing, is_latest: e.target.checked })}
                 />
                 Latest Single
               </label>
@@ -456,8 +456,8 @@ function SinglesTab() {
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
-                  checked={editing.is_active === 1}
-                  onChange={(e) => setEditing({ ...editing, is_active: e.target.checked ? 1 : 0 })}
+                  checked={editing.is_active === true}
+                  onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
                 />
                 Active
               </label>
@@ -494,7 +494,7 @@ function SinglesTab() {
               <h3 className="font-bold text-gray-900">{single.title}</h3>
               <p className="text-sm text-gray-500">{single.description}</p>
               <div className="flex gap-2 mt-1">
-                {single.is_latest === 1 && (
+                {single.is_latest === true && (
                   <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-700">Latest</span>
                 )}
                 <span className={`text-xs px-2 py-1 rounded ${single.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -633,8 +633,8 @@ function ArtistsTab() {
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
-                  checked={editing.is_active === 1}
-                  onChange={(e) => setEditing({ ...editing, is_active: e.target.checked ? 1 : 0 })}
+                  checked={editing.is_active === true}
+                  onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
                 />
                 Active
               </label>
@@ -816,8 +816,8 @@ function PostsTab() {
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
-                  checked={editing.is_published === 1}
-                  onChange={(e) => setEditing({ ...editing, is_published: e.target.checked ? 1 : 0 })}
+                  checked={editing.is_published === true}
+                  onChange={(e) => setEditing({ ...editing, is_published: e.target.checked })}
                 />
                 Published
               </label>

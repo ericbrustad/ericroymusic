@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import getDb from '@/lib/db';
+import { supabase, supabaseAdmin } from '@/lib/db';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -11,103 +11,111 @@ async function requireAdmin() {
   return true;
 }
 
-// GET all blog posts
 export async function GET() {
-  const db = getDb();
-  const posts = db.prepare('SELECT * FROM blog_posts ORDER BY published_at DESC').all();
-  return NextResponse.json(posts);
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .select('*')
+    .order('published_at', { ascending: false });
+
+  if (error) return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  return NextResponse.json(data);
 }
 
-// POST create blog post
 export async function POST(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const data = await request.json();
-    const db = getDb();
+    const body = await request.json();
 
-    // Generate slug
-    const slug = data.slug || data.title
+    const slug = body.slug || body.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
     // Check slug uniqueness
-    const existing = db.prepare('SELECT id FROM blog_posts WHERE slug = ?').get(slug);
+    const { data: existing } = await supabase
+      .from('blog_posts')
+      .select('id')
+      .eq('slug', slug)
+      .single();
+
     if (existing) {
       return NextResponse.json({ error: 'A post with this slug already exists' }, { status: 400 });
     }
 
-    const result = db.prepare(`
-      INSERT INTO blog_posts (title, slug, excerpt, content, featured_image, author, category, is_published, published_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      data.title,
-      slug,
-      data.excerpt || '',
-      data.content,
-      data.featured_image || '',
-      data.author || 'Erix Coach and Car',
-      data.category || 'Uncategorized',
-      data.is_published !== undefined ? data.is_published : 1,
-      data.published_at || new Date().toISOString().split('T')[0]
-    );
+    const { data, error } = await supabaseAdmin
+      .from('blog_posts')
+      .insert({
+        title: body.title,
+        slug,
+        excerpt: body.excerpt || '',
+        content: body.content,
+        featured_image: body.featured_image || '',
+        author: body.author || 'Erix Coach and Car',
+        category: body.category || 'Uncategorized',
+        is_published: body.is_published !== undefined ? body.is_published : true,
+        published_at: body.published_at || new Date().toISOString().split('T')[0],
+      })
+      .select('id')
+      .single();
 
-    return NextResponse.json({ id: result.lastInsertRowid, slug, message: 'Post created' });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ id: data.id, slug, message: 'Post created' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
-// PUT update blog post
 export async function PUT(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const data = await request.json();
-    const db = getDb();
+    const body = await request.json();
 
-    const slug = data.slug || data.title
+    const slug = body.slug || body.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
     // Check slug uniqueness (excluding current post)
-    const existing = db.prepare('SELECT id FROM blog_posts WHERE slug = ? AND id != ?').get(slug, data.id);
+    const { data: existing } = await supabase
+      .from('blog_posts')
+      .select('id')
+      .eq('slug', slug)
+      .neq('id', body.id)
+      .single();
+
     if (existing) {
       return NextResponse.json({ error: 'A post with this slug already exists' }, { status: 400 });
     }
 
-    db.prepare(`
-      UPDATE blog_posts SET
-        title = ?, slug = ?, excerpt = ?, content = ?, featured_image = ?,
-        author = ?, category = ?, is_published = ?, published_at = ?,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(
-      data.title,
-      slug,
-      data.excerpt || '',
-      data.content,
-      data.featured_image || '',
-      data.author || 'Erix Coach and Car',
-      data.category || 'Uncategorized',
-      data.is_published !== undefined ? data.is_published : 1,
-      data.published_at || new Date().toISOString().split('T')[0],
-      data.id
-    );
+    const { error } = await supabaseAdmin
+      .from('blog_posts')
+      .update({
+        title: body.title,
+        slug,
+        excerpt: body.excerpt || '',
+        content: body.content,
+        featured_image: body.featured_image || '',
+        author: body.author || 'Erix Coach and Car',
+        category: body.category || 'Uncategorized',
+        is_published: body.is_published !== undefined ? body.is_published : true,
+        published_at: body.published_at || new Date().toISOString().split('T')[0],
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', body.id);
 
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ message: 'Post updated' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
-// DELETE blog post
 export async function DELETE(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -118,8 +126,12 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    const db = getDb();
-    db.prepare('DELETE FROM blog_posts WHERE id = ?').run(id);
+    const { error } = await supabaseAdmin
+      .from('blog_posts')
+      .delete()
+      .eq('id', id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ message: 'Post deleted' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

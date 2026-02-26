@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import getDb from '@/lib/db';
+import { supabase, supabaseAdmin } from '@/lib/db';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -11,82 +11,78 @@ async function requireAdmin() {
   return true;
 }
 
-// GET all artists
 export async function GET() {
-  const db = getDb();
-  const artists = db.prepare('SELECT * FROM artists ORDER BY sort_order ASC').all();
-  return NextResponse.json(artists);
+  const { data, error } = await supabase
+    .from('artists')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  return NextResponse.json(data);
 }
 
-// POST create artist
 export async function POST(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const data = await request.json();
-    const db = getDb();
+    const body = await request.json();
+    const { data, error } = await supabaseAdmin
+      .from('artists')
+      .insert({
+        name: body.name,
+        song_title: body.song_title || '',
+        description: body.description || '',
+        image: body.image || '',
+        youtube_link: body.youtube_link || '',
+        soundcloud_link: body.soundcloud_link || '',
+        spotify_link: body.spotify_link || '',
+        apple_music_link: body.apple_music_link || '',
+        is_active: body.is_active !== undefined ? body.is_active : true,
+        sort_order: body.sort_order || 0,
+      })
+      .select('id')
+      .single();
 
-    const result = db.prepare(`
-      INSERT INTO artists (name, song_title, description, image, youtube_link, soundcloud_link, spotify_link, apple_music_link, is_active, sort_order)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      data.name,
-      data.song_title || '',
-      data.description || '',
-      data.image || '',
-      data.youtube_link || '',
-      data.soundcloud_link || '',
-      data.spotify_link || '',
-      data.apple_music_link || '',
-      data.is_active !== undefined ? data.is_active : 1,
-      data.sort_order || 0
-    );
-
-    return NextResponse.json({ id: result.lastInsertRowid, message: 'Artist created' });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ id: data.id, message: 'Artist created' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
-// PUT update artist
 export async function PUT(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const data = await request.json();
-    const db = getDb();
+    const body = await request.json();
+    const { error } = await supabaseAdmin
+      .from('artists')
+      .update({
+        name: body.name,
+        song_title: body.song_title || '',
+        description: body.description || '',
+        image: body.image || '',
+        youtube_link: body.youtube_link || '',
+        soundcloud_link: body.soundcloud_link || '',
+        spotify_link: body.spotify_link || '',
+        apple_music_link: body.apple_music_link || '',
+        is_active: body.is_active !== undefined ? body.is_active : true,
+        sort_order: body.sort_order || 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', body.id);
 
-    db.prepare(`
-      UPDATE artists SET
-        name = ?, song_title = ?, description = ?, image = ?, youtube_link = ?,
-        soundcloud_link = ?, spotify_link = ?, apple_music_link = ?,
-        is_active = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(
-      data.name,
-      data.song_title || '',
-      data.description || '',
-      data.image || '',
-      data.youtube_link || '',
-      data.soundcloud_link || '',
-      data.spotify_link || '',
-      data.apple_music_link || '',
-      data.is_active !== undefined ? data.is_active : 1,
-      data.sort_order || 0,
-      data.id
-    );
-
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ message: 'Artist updated' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
-// DELETE artist
 export async function DELETE(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -97,8 +93,12 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    const db = getDb();
-    db.prepare('DELETE FROM artists WHERE id = ?').run(id);
+    const { error } = await supabaseAdmin
+      .from('artists')
+      .delete()
+      .eq('id', id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ message: 'Artist deleted' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

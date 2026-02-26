@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import getDb from '@/lib/db';
+import { supabase } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,14 +9,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valid email required' }, { status: 400 });
     }
 
-    const db = getDb();
-    const existing = db.prepare('SELECT id FROM newsletter_subscribers WHERE email = ?').get(email);
+    const { data: existing } = await supabase
+      .from('newsletter_subscribers')
+      .select('id')
+      .eq('email', email)
+      .single();
 
     if (existing) {
       return NextResponse.json({ error: 'Already subscribed' }, { status: 400 });
     }
 
-    db.prepare('INSERT INTO newsletter_subscribers (email) VALUES (?)').run(email);
+    const { error } = await supabase
+      .from('newsletter_subscribers')
+      .insert({ email });
+
+    if (error) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    }
+
     return NextResponse.json({ message: 'Subscribed successfully' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

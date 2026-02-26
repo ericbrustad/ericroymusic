@@ -1,26 +1,37 @@
 import Link from 'next/link';
-import getDb from '@/lib/db';
+import { supabase } from '@/lib/db';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { FaCalendar, FaFolder, FaArrowRight } from 'react-icons/fa';
 
 export const dynamic = 'force-dynamic';
 
-function getSettings(): Record<string, string> {
-  const db = getDb();
-  const rows = db.prepare('SELECT key, value FROM site_settings').all() as any[];
+async function getSettings(): Promise<Record<string, string>> {
+  const { data: rows } = await supabase.from('site_settings').select('key, value');
   const settings: Record<string, string> = {};
-  for (const row of rows) {
-    settings[row.key] = row.value;
+  if (rows) {
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
   }
   return settings;
 }
 
-export default function BlogPage() {
-  const db = getDb();
-  const settings = getSettings();
-  const posts = db.prepare('SELECT * FROM blog_posts WHERE is_published = 1 ORDER BY published_at DESC').all() as any[];
-  const recentPosts = db.prepare('SELECT title, slug, excerpt FROM blog_posts WHERE is_published = 1 ORDER BY published_at DESC LIMIT 3').all() as any[];
+export default async function BlogPage() {
+  const settings = await getSettings();
+
+  const { data: posts } = await supabase
+    .from('blog_posts')
+    .select('*')
+    .eq('is_published', true)
+    .order('published_at', { ascending: false });
+
+  const { data: recentPosts } = await supabase
+    .from('blog_posts')
+    .select('title, slug, excerpt')
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+    .limit(3);
 
   return (
     <main>
@@ -33,7 +44,7 @@ export default function BlogPage() {
             <div className="w-24 h-1 bg-[var(--accent)] mx-auto" />
           </div>
 
-          {posts.length === 0 ? (
+          {(!posts || posts.length === 0) ? (
             <p className="text-center text-gray-400">No blog posts yet.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -75,7 +86,7 @@ export default function BlogPage() {
         </div>
       </section>
 
-      <Footer settings={settings} recentPosts={recentPosts} />
+      <Footer settings={settings} recentPosts={recentPosts || []} />
     </main>
   );
 }

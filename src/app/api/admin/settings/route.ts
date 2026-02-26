@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import getDb from '@/lib/db';
+import { supabase, supabaseAdmin } from '@/lib/db';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -11,14 +11,16 @@ async function requireAdmin() {
   return true;
 }
 
-// GET all settings
 export async function GET() {
-  const db = getDb();
-  const rows = db.prepare('SELECT * FROM site_settings ORDER BY key ASC').all();
-  return NextResponse.json(rows);
+  const { data, error } = await supabase
+    .from('site_settings')
+    .select('*')
+    .order('key', { ascending: true });
+
+  if (error) return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  return NextResponse.json(data);
 }
 
-// PUT update settings
 export async function PUT(request: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,17 +28,12 @@ export async function PUT(request: NextRequest) {
 
   try {
     const settings = await request.json();
-    const db = getDb();
 
-    const upsert = db.prepare('INSERT OR REPLACE INTO site_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)');
-
-    const updateMany = db.transaction((items: Array<{ key: string; value: string }>) => {
-      for (const item of items) {
-        upsert.run(item.key, item.value);
-      }
-    });
-
-    updateMany(settings);
+    for (const item of settings) {
+      await supabaseAdmin
+        .from('site_settings')
+        .upsert({ key: item.key, value: item.value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    }
 
     return NextResponse.json({ message: 'Settings updated' });
   } catch (error) {

@@ -73,7 +73,7 @@ function SingleCard({ single }: { single: Single }) {
         <FaMusic className="text-6xl text-white/20 group-hover:text-white/40 transition-all duration-500 group-hover:scale-125" />
         <div className="absolute bottom-4 left-4 right-4 z-20">
           <h3 className="text-2xl font-bold text-white uppercase">{single.title}</h3>
-          {single.is_latest === 1 && (
+          {single.is_latest && (
             <span className="inline-block mt-2 bg-[var(--accent)] text-white text-xs px-3 py-1 rounded-full uppercase tracking-wider">
               Latest Single
             </span>
