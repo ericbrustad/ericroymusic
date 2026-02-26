@@ -922,7 +922,8 @@ function SettingsTab() {
     if (res.ok) {
       setMessage('Settings saved successfully!');
     } else {
-      setMessage('Error saving settings');
+      const data = await res.json().catch(() => ({}));
+      setMessage(`Error saving settings: ${data.error || res.statusText}`);
     }
     setSaving(false);
   };
